@@ -126,8 +126,24 @@ list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
     
   # Outliers?
       nrow(subset(daily, Total_Steps > 50000))
-      ck <- subset(daily, Total_Steps > 50000)
+      ck <- subset(daily, Total_Steps > 50000)  # 61
+      
+  # Save data
+    daily_steps <- daily
+    save(daily_steps, file = "~/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Daily_Steps.RData")
+    
+    max(daily_steps$date)
+    
+    
+      
+    
+###################################### Data Checks ############################################      
 
+    
+ # Load Current Step Data
+  load("~/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Step Data.RData")
+  names(daily)
+  
   # Participant level with day daily
     participant <- daily %>%
       dplyr::group_by(ID) %>%
@@ -145,23 +161,9 @@ list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
   
       # Day light savings incorporate?
       
-      
-# Save data
-    daily_steps <- daily
-    save(daily_steps, file = "~/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Daily_Steps.RData")
+    
+    
 
-    
-    
-    
-    
-    
-    
-    
-    
-# Load Current Step Data
-    load("~/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Step Data.RData")
-    names(daily)
-    
     
   # Preliminary Analyses
     # Exclude dates prior to May 16, 2024)
