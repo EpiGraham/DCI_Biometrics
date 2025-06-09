@@ -1,4 +1,4 @@
-# Wearables Data
+# MVPA Data
 
 library(purrr)
 library(tidyverse)
@@ -11,35 +11,9 @@ library(gtsummary)
 
 # Prior to analyses
 #     1. Update file in Terminal
-#         gsutil -m cp -r "gs://dci-wellness-study" "/Users/lauragraham/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data"
+#         gsutil -m cp -r "gs://dci-wellness-study" "/Users/lauragraham/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Data Downloads"
 #         /Users/laurag/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared Drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Data Downloads
 #         - May also require: % gcloud auth login
-#     2. Data will be downloaded to active folder.  Transfer it to the following Gdrive folder.
-#         "~/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Data Downloads/dci-wellness-study/"
-
-
-# # list.dirs (alternate) function set up
-# list.dirs_full <- function(parent=".")   # recursively find directories
-# {
-#   if (length(parent)>1)           # work on first and then rest
-#     return(c(list.dirs(parent[1]), list.dirs(parent[-1])))
-#   else {                          # length(parent) == 1
-#     if (!is.dir(parent))
-#       return(NULL)            # not a directory, don't return anything
-#     child <- list.files(parent, full=TRUE)
-#     if (!any(is.dir(child)))
-#       return(parent)          # no directories below, return parent
-#     else 
-#       return(list.dirs(child))    # recurse
-#   }
-# }
-# 
-# is.dir <- function(x)    # helper function
-# {
-#   ret <- file.info(x)$isdir
-#   ret[is.na(ret)] <- FALSE
-#   ret
-# }
 
 # list.dirs function
 list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
@@ -161,10 +135,14 @@ list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
           mutate(time_next = as.numeric(abs(datetime - lead(datetime)), units = 'mins'),
                  time_since = as.numeric(abs(datetime - lag(datetime)), units = 'mins'))
       summary(daily$time_next)
+      
+      rm(ds2) # Clearing space for analyses
+      
         # Nearly all measures are 10-15 seconds apart
         # Exclude intervals longer than 1 minute
-        daily <- subset(daily, daily$time_next < 1)
+        daily <- subset(daily, time_next <= 1)
           hist(daily$time_next)
+          summary(daily$time_next)
     # Summarize to the day
     daily <- daily %>%
         group_by(ID, date, MVPA) %>%
@@ -212,8 +190,6 @@ list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
         daily <- merge(daily.hr, daily, by=c("ID", "date"), all.x=TRUE)
           daily$Moderate <- ifelse(is.na(daily$Moderate), 0, daily$Moderate)
           daily$Vigorous <- ifelse(is.na(daily$Vigorous), 0, daily$Vigorous)
-          
-        
   
     # Add device type
       device <- ds[,c("ID", "Start_Date", "Device")]
@@ -227,7 +203,32 @@ list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
         device <- device[,-c(2:5)]
         daily <- merge(daily, device, by=c("ID", "date"))
           head(daily)
-    
+          
+    # Summarize to the week level
+      weekly_avg <- daily %>%
+        mutate(Week = week(date)) %>%
+        dplyr::group_by(ID, Week) %>%
+        dplyr::summarize(Avg_Daily_Steps = mean(Total_Steps), date = min(date)) 
+      
+    # Outliers?
+      nrow(subset(daily, Total_Steps > 50000))
+      ck <- subset(daily, Total_Steps > 50000)  # 61
+      
+    # Save data
+      daily_mvpa <- daily
+      save(daily_mvpa, file = "~/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Daily_MVPA.RData")
+      
+      max(daily_mvpa$date)
+      
+          
+          
+          
+          ###################################### Data Checks ############################################             
+          
+          
+          
+          
+          
     # Pre-Post Determinimation
     daily$Pre.Post <- ifelse(daily$date < as.Date('2024-09-15'), "Pre", "Post")
     daily$Pre.Post <- factor(daily$Pre.Post, levels=c("Pre", "Post"))

@@ -1,4 +1,4 @@
-# Wearables Data
+# Step Data
 
 library(purrr)
 library(tidyverse)
@@ -169,6 +169,8 @@ list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
     # Exclude dates prior to May 16, 2024)
       daily2 <- subset(daily, date > as.Date("2024-05-16"))
         table(daily2$Pre.Post)
+        
+        max(daily2$date)
         
     # Merge in demographics from survey data
        daily2 <- merge(daily2, Demo, by = "ID")
