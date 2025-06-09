@@ -27,6 +27,7 @@ flowchart TD
     K["2024 Master List.xlsx"] --> J
     J --> L["Biometrics.Rdata"]
     L --> M["06_Biometics_Analysis.R"]
+    stadiumId(["TruDiagnostics Data"]) --> H
     C@{ shape: rect}
     J@{ shape: rect}
     L@{ shape: rect}
