@@ -1,4 +1,4 @@
-# DCI Biometrics Study Analysis Plan
+# DCI Biometrics Analysis Summary
 
 ## Summary
 Emerging research supports the hypothesis that participation in programs like the Stanford Distinguished Careers Institute (DCI) can positively impact biological age and health metrics. The DCI is intentionally designed to foster personal renewal, community engagement, and recalibration of wellness—three pillars independently correlated with improved longevity and health outcomes[1]. Recent large-scale studies have demonstrated that higher educational attainment and purposeful engagement are associated with a slower pace of biological aging, as measured by advanced epigenetic clocks such as DunedinPACE, and with reduced mortality risk[3].  
