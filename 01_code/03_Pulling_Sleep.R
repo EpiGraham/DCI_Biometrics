@@ -1,4 +1,4 @@
-# Wearables Data
+# Sleep Data
 
 library(purrr)
 library(tidyverse)
@@ -11,35 +11,9 @@ library(gtsummary)
 
 # Prior to analyses
 #     1. Update file in Terminal
-#         gsutil -m cp -r "gs://dci-wellness-study" "/Users/lauragraham/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data"
+#         gsutil -m cp -r "gs://dci-wellness-study" "/Users/lauragraham/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Data Downloads"
 #         /Users/laurag/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared Drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Data Downloads
 #         - May also require: % gcloud auth login
-#     2. Data will be downloaded to active folder.  Transfer it to the following Gdrive folder.
-#         "~/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Data Downloads/dci-wellness-study/"
-
-
-# # list.dirs (alternate) function set up
-# list.dirs_full <- function(parent=".")   # recursively find directories
-# {
-#   if (length(parent)>1)           # work on first and then rest
-#     return(c(list.dirs(parent[1]), list.dirs(parent[-1])))
-#   else {                          # length(parent) == 1
-#     if (!is.dir(parent))
-#       return(NULL)            # not a directory, don't return anything
-#     child <- list.files(parent, full=TRUE)
-#     if (!any(is.dir(child)))
-#       return(parent)          # no directories below, return parent
-#     else 
-#       return(list.dirs(child))    # recurse
-#   }
-# }
-# 
-# is.dir <- function(x)    # helper function
-# {
-#   ret <- file.info(x)$isdir
-#   ret[is.na(ret)] <- FALSE
-#   ret
-# }
 
 # list.dirs function
 list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
@@ -164,11 +138,9 @@ list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
       table(devices2$`HK WHOOP`)
       
      # For data checks
-     # head(subset(ds, Device == "HK Oura" & Type == "core"))
-     # ck2 <- subset(ds, ID == "a52ur1539645522398245" & as.Date((Start_Date)) == "2028-11-23")
-      
-      
-      ck <- subset(ds, Device == "Fitbit")
+      # head(subset(ds, Device == "HK Oura" & Type == "core"))
+      # ck2 <- subset(ds, ID == "a52ur1539645522398245" & as.Date((Start_Date)) == "2028-11-23")
+      # ck <- subset(ds, Device == "Fitbit")
       
     
 ########################## Merge in ID Crosswalk ############################################
@@ -275,7 +247,7 @@ list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
      
  # Alternative method: Identify bookends
    # Subset to Sleep Intervals
-     ds5a <- ds5a[order(ds5a$ID, ds5a$Start_dt, ds5a$End_dt),]
+     ds5a <- ds3[order(ds3$ID, ds3$Start_dt, ds3$End_dt),]
      ds5a <- ds5a[,c("ID", "Device", "Value", "Type", "Start_dt", "End_dt")]
      ds5a <- subset(ds5a, Type %in% c("asleep", "deep", "light", "rem", "core"))
      
@@ -309,12 +281,9 @@ list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
                                ifelse(daily2$sleep_hr > 12, daily2$sleep_hr2, daily2$sleep_hr3))
     hist(daily2$sleep_hr3)
     summary(daily2$sleep_hr3)
+    summary(as.numeric(daily2$sleep_hr2)-daily2$sleep_hr)
      
-   summary(as.numeric(daily2$sleep_hr2)-daily2$sleep_hr)
-     
-     
-     
-        
+       
     # Add device type
       device <- ds[,c("ID", "Start_Date", "Device")]
         device <- distinct(device)
@@ -326,20 +295,25 @@ list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
         device <- device %>% mutate(date = floor_date(Start_Date-Shift)) 
         device <- device[,-c(2:5)]
         daily2 <- merge(daily2, device, by=c("ID", "date"))
-          head(daily)
-    
-    # Pre-Post Determinimation
-    daily$Pre.Post <- ifelse(daily$date < as.Date('2024-09-15'), "Pre", "Post")
-    daily$Pre.Post <- factor(daily$Pre.Post, levels=c("Pre", "Post"))
-      table(daily$Pre.Post)
-    daily$Times <- ifelse(daily$date < as.Date('2024-05-16'), "1. May 15 or earlier",
-                          ifelse(daily$date <= as.Date('2024-06-28'), "2. Pre Intro to DCI (06/28/2024)",
-                                 ifelse(daily$date <= as.Date('2024-08-01'), "3. Pre Virtual Orientation (08/01/2024)",
-                                        ifelse(daily$date < as.Date('2024-09-15'), "4. Pre In-Person Orientation (09/15/2024)", "5. Post DCI Orientation"))))
-      table(daily$Times)
-  
-      # Day light savings incorporate?
+          head(daily2)
+          
+      # Outliers?
+      daily2$Total_Sleep <- daily2$sleep_hr3
+      summary(daily2$Total_Sleep)
+      quantile(daily2$Total_Sleep, c(.95, .99), na.rm=T)
       
+      names(daily2)
+      
+      # Save data
+      daily2$Sleep_Start <- daily2$Start
+      daily2$Sleep_End <- daily2$End
+      daily_sleep <- daily2[c("ID", "date", "Sleep_Start", "Sleep_End", "Total_Sleep")]
+     
+      save(daily_sleep, file = "~/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Daily_Sleep.RData")
+      
+      max(daily_sleep$date)
+      
+          
       
       
       
