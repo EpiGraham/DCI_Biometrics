@@ -129,7 +129,7 @@ skimr::skim(daily2)
 
 ## Summary of Participants Included in Wearables Analysis
 
-```{r, warning=FALSE, echo=FALSE, message = FALSE, results='asis'}
+```{r, warning=FALSE, echo=FALSE, message = FALSE, results='markup'}
 
 participant <- daily2 %>%
   dplyr::group_by(ID) %>%
@@ -177,7 +177,7 @@ tbl_summary(participant, include = c("Avg_Daily_Steps", "Avg_Daily_MVPA", "Avg_D
 
 ## Distribution of Daily Wearable Measures
 
-```{r, warning=FALSE, echo=FALSE, message = FALSE, results='asis', fig.height=6}
+```{r, warning=FALSE, echo=FALSE, message = FALSE, fig.height=6}
 
 p1 <- ggplot(daily2, aes(x = Total_Steps, y = ..density..)) +
   geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
