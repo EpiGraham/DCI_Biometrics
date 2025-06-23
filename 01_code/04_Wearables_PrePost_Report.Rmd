@@ -2,7 +2,9 @@
 title: "Wearables Pre-Post Data Report (06.20.2025)"
 author: "Laura Graham"
 date: "`r Sys.Date()`"
-output: rmdcss::html_retro
+output: 
+  github_document:
+    html_preview: false
 ---
 
 ```{r setup, include=FALSE}
