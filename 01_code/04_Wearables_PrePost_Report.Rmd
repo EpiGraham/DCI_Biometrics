@@ -8,6 +8,12 @@ output:
     toc_depth: 2
 ---
 
+Two analyses are used to assess the impact of DCI on physical wellbeing as measured by average daily steps, total minutes of moderate to vigorous activity (MVPA), and hours of sleep.
+
+Analysis 1 uses a paired design (e.g. paired t-test). While this approach is simple, easy to interpret, and controls for individual differences because each person is compared to themselves, it only uses summary data per individual (e.g., mean or total steps), so it discards information about daily fluctuations. 
+
+Analysis 2 uses a repeated measures model using day as the unit of analysis with a repeated effect for each individual and a fixed effect for the time period (Pre vs. Post). A repeated measures model makes use of all daily data, increasing statistical power, and can account for day-to-day variability, time trends, and other covariates. It's also more flexible, can handle missing days and unequal numbers of days per person. 
+
 ```{r setup, include=FALSE}
 
 knitr::opts_chunk$set(echo = TRUE)
@@ -22,6 +28,7 @@ library(procs)
 library(gtsummary)
 library(readxl)
 library(gridExtra)
+library(lme4)
 
 # Load Current Step Data
   load("~/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Daily_Steps.RData")
@@ -107,42 +114,69 @@ library(gridExtra)
   
 
 ```
-# Summary
 
-DCI participants take an average of `r round(mean(daily2$Total_Steps, na.rm=T), digits = 0)` steps per day which includes an average of `r round(mean(daily2$Total_MVPA, na.rm=T), digits = 0)` minutes of moderate to vigorous physical activity (MVPA).
+# Distribution of Daily Wearable Measures
 
+Unit of analysis is the day.
 
-## Notes
-All models include a random effect for the participant and are adjusted for device type used to capture the data.
+```{r, warning=FALSE, echo=FALSE, message = FALSE, fig.height=6}
 
-## Data Frame Summary
+p1 <- ggplot(daily2, aes(x = Total_Steps, y = ..density..)) +
+  geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
+  geom_density(colour = "red") + theme_bw() +  
+  ggtitle("Average Daily Step Counts Across All Time for Participants")+
+  labs(x = "Average Daily Steps", y = "Density")
 
-This is a summary of all data included in the final analytic sample. 
+p2 <- ggplot(daily2, aes(x = Total_MVPA, y = ..density..)) +
+  geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
+  geom_density(colour = "red") + theme_bw() +  
+  ggtitle("Average Daily MVPA Across All Time for Participants")+
+  labs(x = "Average Daily MVPA", y = "Density")
 
-Unit of analysis is the participant-day. Total number is the number of participant day with at least one steps, MVPA, or sleep measured.
+p3 <- ggplot(daily2, aes(x = Total_Sleep, y = ..density..)) +
+  geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
+  geom_density(colour = "red") + theme_bw() +  
+  ggtitle("Average Daily Sleep Hours Across All Time for Participants")+
+  labs(x = "Average Daily Sleep Hours", y = "Density")
 
-```{r, warning=FALSE, echo=FALSE, message = FALSE}
-
-skimr::skim(daily2)
+grid.arrange(p1, p2, p3, nrow = 3)
 
 ```
 
-## Summary of Participants Included in Wearables Analysis
+# 1. Participant-Level Analysis
+## Participant Characteristics
+
+Unit of analysis is the person.
 
 ```{r, warning=FALSE, echo=FALSE, message = FALSE, results='markup'}
 
-participant <- daily2 %>%
-  dplyr::group_by(ID) %>%
-  dplyr::summarize(Avg_Daily_Steps = mean(Total_Steps, na.rm=T), 
-                   Avg_Daily_MVPA = mean(Total_MVPA, na.rm=T),
-                   Avg_Daily_Sleep = mean(Total_Sleep, na.rm=T),
-                   Med_Daily_Steps = median(Total_Steps, na.rm=T), 
-                   Med_Daily_MVPA = median(Total_MVPA, na.rm=T),
-                   Med_Daily_Sleep = median(Total_Sleep, na.rm=T),
-                   
-                   start_date = min(date), last_date = max(date)) 
+# Overall Averages
+  participant <- daily2 %>%
+    dplyr::group_by(ID) %>%
+    dplyr::summarize(Avg_Daily_Steps = mean(Total_Steps, na.rm=T), 
+                     Avg_Daily_MVPA = mean(Total_MVPA, na.rm=T),
+                     Avg_Daily_Sleep = mean(Total_Sleep, na.rm=T),
+                     Med_Daily_Steps = median(Total_Steps, na.rm=T), 
+                     Med_Daily_MVPA = median(Total_MVPA, na.rm=T),
+                     Med_Daily_Sleep = median(Total_Sleep, na.rm=T),
+                     
+                     start_date = min(date), last_date = max(date)) 
+  
+  participant$time <- participant$last_date-participant$start_date
 
-participant$time <- participant$last_date-participant$start_date
+# Limit to those with at least one pre/post assessment
+  Pre <- subset(daily2, Pre.Post == "Pre") %>% group_by(ID) %>%
+      summarize(Pre_Steps = mean(Total_Steps, na.rm=T), 
+                Pre_MVPA = mean(Total_MVPA, na.rm=T),
+                Pre_Sleep = mean(Total_Sleep, na.rm=T))
+  
+  Post <- subset(daily2, Pre.Post == "Post") %>% group_by(ID) %>%
+    summarize(Post_Steps = mean(Total_Steps, na.rm=T), 
+              Post_MVPA = mean(Total_MVPA, na.rm=T),
+              Post_Sleep = mean(Total_Sleep, na.rm=T))
+  
+  Pre.Post <- merge(Pre, Post, by=("ID"))
+  participant <- merge(Pre.Post, participant, by=("ID"))
 
 # Merge in demographics
   Demo2 <- daily2[,c("ID", "Cohort", "gender", "Surv_year", "Age", "education", "Usborn", "married", "children_living2",
@@ -175,28 +209,102 @@ tbl_summary(participant, include = c("Avg_Daily_Steps", "Avg_Daily_MVPA", "Avg_D
 
 ```
 
-## Distribution of Daily Wearable Measures
+## Participant Characteristics Associated with Wearable Metrics
 
-```{r, warning=FALSE, echo=FALSE, message = FALSE, fig.height=6}
+```{r, echo=FALSE, message = FALSE, warning=FALSE}
 
-p1 <- ggplot(daily2, aes(x = Total_Steps, y = ..density..)) +
-  geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
-  geom_density(colour = "red") + theme_bw() +  
-  ggtitle("Average Daily Step Counts Across All Time for Participants")+
-  labs(x = "Average Daily Steps", y = "Density")
+participant$Age_Category <- gtools::quantcut(participant$Age, q = 4, na.rm = TRUE)
+participant$Work_Years_Category <- gtools::quantcut(participant$work_years, q = 4, na.rm = TRUE)
 
-p2 <- ggplot(daily2, aes(x = Total_MVPA, y = ..density..)) +
-  geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
-  geom_density(colour = "red") + theme_bw() +  
-  ggtitle("Average Daily MVPA Across All Time for Participants")+
-  labs(x = "Average Daily MVPA", y = "Density")
+t1 <- tbl_continuous(data=participant, Avg_Daily_Steps, 
+               include = c("gender", "Age_Category", "Usborn", "married", "children_living2", "selfemployed", "Work_Years_Category", "rate_health")) %>% add_p()
+t2 <- tbl_continuous(data=participant, Avg_Daily_MVPA, 
+               include = c("gender", "Age_Category", "Usborn", "married", "children_living2", "selfemployed", "Work_Years_Category", "rate_health")) %>% add_p()
+t3 <- tbl_continuous(data=participant, Avg_Daily_Sleep, 
+               include = c("gender", "Age_Category", "Usborn", "married", "children_living2", "selfemployed", "Work_Years_Category", "rate_health")) %>% add_p()
 
-p3 <- ggplot(daily2, aes(x = Total_Sleep, y = ..density..)) +
-  geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
-  geom_density(colour = "red") + theme_bw() +  
-  ggtitle("Average Daily Sleep Hours Across All Time for Participants")+
-  labs(x = "Average Daily Sleep Hours", y = "Density")
-
-grid.arrange(p1, p2, p3, nrow = 3)
+tbl_merge(
+  tbls = list(t1, t2, t3),
+  tab_spanner = c("**Average Daily Steps**", "**Average Daily MVPA**", "**Average Daily Sleep Hours**")
+) %>%
+  as_gt() %>% gt::tab_source_note(gt::md("*Data as of June 1, 2025*")) %>% gt::as_raw_html()
 
 ```
+
+## Change in Wearable Metrics by Study Time Period (Pre vs. Post)
+
+```{r, echo=FALSE, message = FALSE, warning=FALSE}
+
+Pre <- subset(daily2, Pre.Post == "Pre") %>% group_by(ID) %>%
+    summarize(Pre_Steps = mean(Total_Steps, na.rm=T), 
+              Pre_MVPA = mean(Total_MVPA, na.rm=T),
+              Pre_Sleep = mean(Total_Sleep, na.rm=T))
+
+Post <- subset(daily2, Pre.Post == "Post") %>% group_by(ID) %>%
+  summarize(Post_Steps = mean(Total_Steps, na.rm=T), 
+            Post_MVPA = mean(Total_MVPA, na.rm=T),
+            Post_Sleep = mean(Total_Sleep, na.rm=T))
+
+Pre.Post <- merge(Pre, Post, by=("ID"))
+
+ggpubr::ggpaired(Pre.Post[complete.cases(Pre.Post[ , c('Pre_Steps', 'Post_Steps')]), ],
+                 cond1 = "Pre_Steps", cond2 = "Post_Steps", fill="condition", line.color = "gray", line.size = 0.2,
+                palette = "jama") + ggtitle("Average Daily Steps") + ylab('Mean') + xlab("") + labs(fill="Time") +
+  theme_bw() + ggpubr::stat_compare_means(method="wilcox.test", paired=TRUE, hjust=1.2)
+
+ggpubr::ggpaired(Pre.Post[complete.cases(Pre.Post[ , c('Pre_MVPA', 'Post_MVPA')]), ],
+                 cond1 = "Pre_MVPA", cond2 = "Post_MVPA", fill="condition", line.color = "gray", line.size = 0.2,
+                 palette = "jama") + ggtitle("Average Daily MVPA") + ylab('Mean') + xlab("") + labs(fill="Time") +
+  theme_bw() + ggpubr::stat_compare_means(method="wilcox.test", paired=TRUE, hjust=1.2)
+
+ggpubr::ggpaired(Pre.Post[complete.cases(Pre.Post[ , c('Pre_Sleep', 'Post_Sleep')]), ],
+                 cond1 = "Pre_Sleep", cond2 = "Post_Sleep", fill="condition", line.color = "gray", line.size = 0.2,
+                 palette = "jama") + ggtitle("Average Daily Sleep Hours") + ylab('Mean') + xlab("") + labs(fill="Time") +
+  theme_bw() + ggpubr::stat_compare_means(method="wilcox.test", paired=TRUE, hjust=1.2)
+
+```
+
+# 2. Day-Level Analysis
+## Unadjusted
+
+```{r, echo=FALSE, message = FALSE, warning=FALSE}
+
+daily3 <- daily2[daily2$ID %in% participant$ID, ] 
+
+tbl_summary(data = daily3, by=Pre.Post, include=c(Total_Steps, Total_MVPA, Total_Sleep), 
+            type = all_continuous() ~ "continuous2",
+            statistic = all_continuous() ~ c(
+              "{mean} ({sd})",
+              "{median} ({p25}, {p75})",
+              "{min}, {max}"                  ),
+            label = c(Total_Steps ~ "Daily Steps", 
+                      Total_MVPA ~ "Daily Minutes Moderate to Vigorous Activity",
+                      Total_Sleep ~ "Daily Hours of Sleep")) %>% 
+  add_overall() %>% add_p() %>% 
+  as_gt() %>% gt::as_raw_html()
+
+```
+
+## Adjusted for age, sex, and self-reported health
+
+ID is included as a repeated effect to account for clustering on days within a participant.
+
+```{r, echo=FALSE, message = FALSE, warning=FALSE}
+
+t1 <- tbl_regression(glmer(data = daily3, Total_Steps ~ Pre.Post + gender + Age + rate_health + (1|ID))) |> add_glance_source_note() %>%
+  modify_header(label = "**Adjusted Model**") 
+
+t2<- tbl_regression(glmer(data = daily3, Total_MVPA ~ Pre.Post + gender + Age + rate_health + (1|ID))) |> add_glance_source_note() %>%
+  modify_header(label = "**Adjusted Model**") 
+
+t3 <- tbl_regression(glmer(data = daily3, Total_Sleep ~ Pre.Post + gender + Age + rate_health + (1|ID))) |> add_glance_source_note() %>%
+  modify_header(label = "**Adjusted Model**") 
+
+tbl_merge(
+  tbls = list(t1, t2, t3),
+  tab_spanner = c("**Change in Daily Steps**", "**Change in Daily MVPA**", "**Change in Daily Sleep Hours**")
+) %>%
+  as_gt() %>% gt::tab_source_note(gt::md("*Data as of June 1, 2025*")) %>% gt::as_raw_html()
+
+```
+
