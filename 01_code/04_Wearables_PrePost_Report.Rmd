@@ -1,10 +1,9 @@
 ---
-title: "Wearables Pre-Post Data Report (06.20.2025)"
+title: "Wearables Pre-Post Data Report"
 author: "Laura Graham"
 date: "`r Sys.Date()`"
 output: 
   github_document:
-    html_preview: false
     toc: true
     toc_depth: 2
 ---
@@ -72,10 +71,22 @@ library(gridExtra)
   daily2 <- merge(daily, Demo, by = "ID", all.x = T)
   daily2 <- merge(daily2, survey, by.x = "Old ID", by.y = "id_number2", all.x = T)
   daily2 <- merge(daily2, Trudiagnostics, by.x = "TruDiagnosticID", by.y = "Patient.ID", all.x = T)
-  
-  daily2 <- labelled::copy_labels(from = survey, to = daily2)
+
+  # Subsetting Data
+    daily2 <- subset(daily2, date > as.Date("2024-05-16"))
+    daily2 <- subset(daily2, date < as.Date("2025-06-01"))
+    
+    names(daily2)
+ 
+  daily2 <- daily2[,c("ID", "date", "Total_Steps", "Total_MVPA", "Total_Sleep", "HR_Avg", "HR_Max", "HR_n", "Moderate", "Vigorous", "Sleep_Start", "Sleep_End", "Pre.Post", "Times",
+                  "Cohort", "gender", "Surv_year", "birth_year", "Age", "education", 
+                  "Usborn", "married",  "children_living2", "selfemployed", "work_years", "rate_health", "Big5_Agreeable", "Big5_Conscientious",
+                  "Big5_Extravert", "Big5_Neurotic", "Big5_Open", "UCLA_Loneliness3", "UCLA_Loneliness_Rev", "Need_for_Cognition", "Ryff_Purpose", "Q156_1",  
+                  "Q127", "Q129", "Q153", "Telomere.Values", "OMICmAge", "Decimal.Chronological.Age")]
 
 # Cleaning Labels
+  daily2 <- labelled::copy_labels(from = survey, to = daily2)
+
   labelled::var_label(daily2$Pre.Post) <- "Pre/Post DCI"
   labelled::var_label(daily2$gender) <- "Gender"
   labelled::var_label(daily2$education) <- "Education"
@@ -92,20 +103,23 @@ library(gridExtra)
                                        "2" = "Dissatisfied", 
                                        "1" = "Very Dissatisfied"))
   labelled::var_label(daily2$Q156_1) <- "How satisfied are you with your health?"
- 
+  daily2 <- labelled::copy_labels(from = survey, to = daily2)
+  
+
 ```
 # Summary
 
-DCI participants take an average of 14,406 steps per day which includes an average of 119 minutes of moderate to vigorous physical activity (MVPA).
+DCI participants take an average of `r round(mean(daily2$Total_Steps, na.rm=T), digits = 0)` steps per day which includes an average of `r round(mean(daily2$Total_MVPA, na.rm=T), digits = 0)` minutes of moderate to vigorous physical activity (MVPA).
 
-After starting DCI, only female participants see an increase in daily step count (+1,193 steps per day). Male DCI participants reduce their daily step counts by 2,219 steps after starting DCI.
 
-MVPA increases across all participants by 18 minutes as compared to the pre-Intro to DCI period.
-
-# Notes
+## Notes
 All models include a random effect for the participant and are adjusted for device type used to capture the data.
 
-# Data Frame Summary
+## Data Frame Summary
+
+This is a summary of all data included in the final analytic sample. 
+
+Unit of analysis is the participant-day. Total number is the number of participant day with at least one steps, MVPA, or sleep measured.
 
 ```{r, warning=FALSE, echo=FALSE, message = FALSE}
 
@@ -113,348 +127,76 @@ skimr::skim(daily2)
 
 ```
 
+## Summary of Participants Included in Wearables Analysis
 
-# Step Count Analysis
+```{r, warning=FALSE, echo=FALSE, message = FALSE, results='asis'}
 
-## Distribution of Daily Step Counts
+participant <- daily2 %>%
+  dplyr::group_by(ID) %>%
+  dplyr::summarize(Avg_Daily_Steps = mean(Total_Steps, na.rm=T), 
+                   Avg_Daily_MVPA = mean(Total_MVPA, na.rm=T),
+                   Avg_Daily_Sleep = mean(Total_Sleep, na.rm=T),
+                   Med_Daily_Steps = median(Total_Steps, na.rm=T), 
+                   Med_Daily_MVPA = median(Total_MVPA, na.rm=T),
+                   Med_Daily_Sleep = median(Total_Sleep, na.rm=T),
+                   
+                   start_date = min(date), last_date = max(date)) 
 
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
+participant$time <- participant$last_date-participant$start_date
 
-    # Exclude dates prior to May 16, 2024)
-      daily2 <- subset(daily2, date > as.Date("2024-05-16"))
-      daily2 <- labelled::copy_labels(from = daily_steps, to = daily2)
-      
-      mu <- plyr::ddply(daily2, "Pre.Post", summarise, grp.mean=mean(Total_Steps, na.rm=T))
-      
-      mu
-      
-      ggplot(daily2, aes(x = Total_Steps, y = ..density..)) +
-        geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
-        geom_density(colour = "red") + theme_bw() +  
-        ggtitle("Average Daily Step Counts Across All Time for Participants")+
-        labs(x = "Average Daily Steps", y = "Density")
+# Merge in demographics
+  Demo2 <- daily2[,c("ID", "Cohort", "gender", "Surv_year", "Age", "education", "Usborn", "married", "children_living2",
+                     "selfemployed", "work_years", "rate_health")]
+  Demo2 <- distinct(Demo2)
+  participant <- merge(participant, Demo2, by="ID", all.x=T)
+  
+# Variable Levels
+  participant <- labelled::copy_labels(from = survey, to = participant)
+  
+  labelled::var_label(participant$Avg_Daily_Steps) <- "Average Daily Steps"
+  labelled::var_label(participant$Avg_Daily_MVPA) <- "Average Daily Minutes of Moderate to Vigorous Physcial Activity (MVPA)"
+  labelled::var_label(participant$Avg_Daily_Sleep) <- "Average Daily Sleep Hours"
+  labelled::var_label(participant$start_date) <- "Earliest Recorded Date"
+  labelled::var_label(participant$last_date) <- "Last Recorded Date"
+  labelled::var_label(participant$time) <- "Days of Observation"
+  labelled::var_label(participant$gender) <- "Sex"
+  labelled::var_label(participant$Age) <- "Age, years"
+  labelled::var_label(participant$Usborn) <- "US born"
+  labelled::var_label(participant$married) <- "Marital Status"
+  labelled::var_label(participant$children_living2) <- "Number of Children"
+  labelled::var_label(participant$selfemployed) <- "Self-Employed"
+  labelled::var_label(participant$work_years) <- "Working Years"
+  labelled::var_label(participant$rate_health) <- "Self-Rated Health at the Start of DCI"
+  
+  
+tbl_summary(participant, include = c("Avg_Daily_Steps", "Avg_Daily_MVPA", "Avg_Daily_Sleep", "start_date", "last_date", "time",
+                                     "gender", "Age", "Usborn", "married", "children_living2", "selfemployed", "work_years", "rate_health"))
+
+
 ```
 
-## Daily Step Counts by Time Period
+## Distribution of Daily Wearable Measures
 
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
+```{r, warning=FALSE, echo=FALSE, message = FALSE, results='asis', fig.height=6}
 
-    # Initial Table
-      tbl_summary(data = daily2, by=Times, include=Total_Steps, 
-                  type = all_continuous() ~ "continuous2",
-                  statistic = all_continuous() ~ c(
-                    "{mean} ({sd})",
-                    "{median} ({p25}, {p75})",
-                    "{min}, {max}"                  ),
-                  digits = all_continuous() ~ 0,
-                  label = Total_Steps ~ "Daily Steps"                 ) |> 
-        add_overall() 
-      
-```
-
-
-## Plotting Change in Daily Steps Over Time
-
-```{r, echo=FALSE, message = FALSE, warning=FALSE, fig.width=8}
-      ggplot(daily2, aes(x = date, y = Total_Steps)) + 
-        geom_smooth(colour = "red") + 
-        scale_x_datetime(date_breaks="1 month", date_labels="%b\n%Y") +
-        labs( x = "Average Daily Steps", y = "Density")+
-        theme_bw()
-```
-
-## Daily Steps by Device and Survey Responses
-
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
-  
-  tbl_continuous(data=daily2, variable = Total_Steps, include = c("gender", "education", "Usborn",
-                                                                  "married", "children_living2", "selfemployed",
-                                                                  "rate_health", "Q156_1", "Q127", "Q129", 
-                                                                  "Q153")) |> add_p()
-  
-  my_data <- daily2[, c("Total_Steps", "Age", "OMICmAge", "UCLA_Loneliness_Rev")]
-    correlation::correlation(my_data)
-```
-
-## Unadjusted and Adjusted model of Daily Step Counts
-Includes a random effect for participants and adjustment for device type
-
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
-  library(lme4)
-  
-  tbl_regression(glmer(data = daily2, Total_Steps ~ Pre.Post + (1|ID))) |> add_glance_source_note() |>
-  modify_header(label = "**Unadjusted Model**") |>
-  as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*"))
-  
-  tbl_regression(glmer(data = daily2, Total_Steps ~ Times + (1|ID))) |> add_glance_source_note()|>
-  modify_header(label = "**Unadjusted Model by Time Periods**") |>
-    as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*"))
-  
-  tbl_regression(glmer(data = daily2, Total_Steps ~ Times + gender + Age + rate_health + (1|ID))) |> add_glance_source_note()|>
-  modify_header(label = "**Adjusted Model**") |>
-    as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*"))
-```
-
-## Difference in Effect of DCI on Step Count by Gender
-
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
-
-  tbl_regression(lm(data = subset(daily2, gender == "Male"), Total_Steps ~ Pre.Post)) |>
-  modify_header(label = "**Difference Among Males**") |> add_glance_source_note() |>
-  as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*")) 
-  
-  tbl_regression(lm(data = subset(daily2, gender == "Female"), Total_Steps ~ Pre.Post))|>
-  modify_header(label = "**Difference Among Females**") |> add_glance_source_note() |>
-  as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*"))
-  
-  tbl_regression(summary(lm(data = daily2, Total_Steps ~ Pre.Post*gender)))|>
-  modify_header(label = "**Interaction Model**") |> add_glance_source_note() |>
-  as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*"))
-  
-  # Diff-in-diff Plot
-    plot_data <- daily2[complete.cases(daily2$gender), ] %>%
-    # Make these categories instead of 0/1 numbers so they look nicer in the plot
-    mutate(gender = factor(gender, labels = c("Female", "Male")),
-           Pre.Post = factor(Pre.Post, labels = c("Before DCI", "After DCI"))) %>%
-    group_by(gender, Pre.Post) %>%
-    summarize(Avg_Steps = mean(Total_Steps, na.rm=T),
-              se = sd(Total_Steps) / sqrt(n()),
-              upper = Avg_Steps + (1.96 * se),
-              lower = Avg_Steps + (-1.96 * se))
-    
-    plot_data <- labelled::copy_labels(from = daily2, to = plot_data)
-
-  # Plot
-  ggplot(plot_data, aes(x = Pre.Post, y = Avg_Steps, color = gender)) +
-    geom_pointrange(aes(ymin = lower, ymax = upper), size = 1) +
-    geom_line(aes(group = gender)) +
-    theme_bw() + 
-    labs(title="Interaction of Gender and Time", y = "Average Daily Steps", x = "")
-  
-  # Model
-  tbl_regression(lm(data = daily2, Total_Steps ~ gender:Pre.Post + Age + rate_health))|>
-    modify_header(label = "**Interaction with Adjustment**") |> 
-    add_glance_source_note() |>
-    as_gt() |> gt::tab_source_note(gt::md("*Data as of June 11, 2025*"))
-```
-
-# Minutes of Moderate to Vigorous Activity (MVPA)
-Calculated from Heart Rate Data as per SAP.
-
-## Total Daily Minutes of MVPA
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
-    # Exclude dates prior to May 16, 2024)
-      
-      tbl_summary(data = daily2, include=c(Total_MVPA, Moderate, Vigorous), by = Times,
-                  type = all_continuous() ~ "continuous2",
-                  statistic = all_continuous() ~ c(
-                    "{mean} ({sd})",
-                    "{median} ({p25}, {p75})",
-                    "{min}, {max}"
-                  ),
-                  digits = all_continuous() ~ 0,
-                  label = Total_MVPA ~ "Minutes of Moderate to Vigorous Activity per Day"
-                  ) |> add_overall()
-```
-
-## Distribution of Daily MVPA Minutes
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
-  mu <- plyr::ddply(daily2, "Pre.Post", summarise, grp.mean=mean(Total_MVPA))
-      mu <- labelled::copy_labels(from = daily2, to = mu)
-  ggplot(daily2, aes(x = Total_MVPA, y = ..density..)) +
-    geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
-    geom_density(colour = "red") + theme_bw() +  
-    labs(x = "MVPA Minutes", y = "Density")
-  
-  mu <- plyr::ddply(daily2, "Pre.Post", summarise, grp.mean=mean(Moderate))
-      mu <- labelled::copy_labels(from = daily2, to = mu)
-  ggplot(daily2, aes(x = Moderate, y = ..density..)) +
-    geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
-    geom_density(colour = "red") + theme_bw() +  
-    labs(x = "Moderate Minutes", y = "Density")
-  
-  mu <- plyr::ddply(daily2, "Pre.Post", summarise, grp.mean=mean(Vigorous))
-      mu <- labelled::copy_labels(from = daily2, to = mu)
-  ggplot(daily2, aes(x = Vigorous, y = ..density..)) +
-    geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
-    geom_density(colour = "red") + theme_bw() +  
-    labs(x = "Vigorous Minutes", y = "Density")
-  
-```
-
-## Change in MVPA Minutes Over Time
-
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
-  ggplot(daily2, aes(x = date, y = Total_MVPA)) + 
-    geom_point(colour = "grey60", size = .5) +
-    geom_smooth(colour = "red") + 
-    scale_x_datetime(date_breaks="1 month", date_labels="%b-%Y") +
-    labs(x = "MVPA Minutes", y = "Density")+
-    theme_bw()
-```  
-
-## Distribution of MVPA by Time Period
-
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
-  mu <- plyr::ddply(daily2, "Pre.Post", summarise, grp.mean=mean(Total_MVPA))
-      mu <- labelled::copy_labels(from = daily2, to = mu)
-  ggplot(daily2, aes(x=Total_MVPA, color=Pre.Post, fill=Pre.Post)) +
-    geom_histogram(aes(y=..density..), position="identity", alpha=0.2, size = .2)+
-    geom_density(alpha=0) +
-    geom_vline(data=mu, aes(xintercept=grp.mean, color=Pre.Post),
-               linetype="dashed")+
-    scale_color_manual(values=c("#E69F00", "#999999"))+
-    scale_fill_manual(values=c("#E69F00", "#999999"))+
-    labs(x = "MVPA Minutes", y = "Density")+
-    theme_bw()
-```
-
-## Initial Table of Daily MVPA by Device and Survey Responses
-
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
-
-  tbl_continuous(data=daily2, variable = Total_MVPA, include = c("gender", "education", "Usborn",
-                                                                  "married", "children_living2", "selfemployed",
-                                                                  "rate_health", "Q156_1", "Q127", "Q129", 
-                                                                  "Q153")) |> add_p()
-  my_data <- daily2[, c("Total_MVPA", "Age", "OMICmAge", "UCLA_Loneliness_Rev")]
-  correlation::correlation(my_data)
-```
-
-## Unadjusted and Adjusted Model of Daily MVPA
-
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
-  library(lme4)
-  
-  tbl_regression(glmer(data = daily2, Total_MVPA ~ Pre.Post + (1|ID))) |> add_glance_source_note() |>
-  modify_header(label = "**Unadjusted Difference**") |>
-  as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*"))
-  
-  tbl_regression(glmer(data = daily2, Total_MVPA ~ Times + (1|ID))) |> add_glance_source_note() |>
-  modify_header(label = "**Unadjusted Difference for All Times**") |>
-    as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*"))
-  
-  tbl_regression(glmer(data = daily2, Total_MVPA ~ Times + gender + Age + rate_health +  (1|ID))) |>
-  modify_header(label = "**Adjusted Difference**") |> add_glance_source_note() |>
-    as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*"))
-```
-
-# Summary of Sleep Data
-
-## Distribution of Daily Sleep (Hours)
-
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
-
-mu <- plyr::ddply(daily2, "Pre.Post", summarise, grp.mean=mean(Total_Sleep, na.rm=T))
-
-mu
-
-ggplot(daily2, aes(x = Total_Sleep, y = ..density..)) +
+p1 <- ggplot(daily2, aes(x = Total_Steps, y = ..density..)) +
   geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
   geom_density(colour = "red") + theme_bw() +  
-  ggtitle("Average Daily Sleep (Hours) Across All Time for Participants")+
-  labs(x = "Average Daily Sleep (Hours)", y = "Density")
-```
+  ggtitle("Average Daily Step Counts Across All Time for Participants")+
+  labs(x = "Average Daily Steps", y = "Density")
 
-## Daily Sleep (Hours) by Time Period
+p2 <- ggplot(daily2, aes(x = Total_MVPA, y = ..density..)) +
+  geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
+  geom_density(colour = "red") + theme_bw() +  
+  ggtitle("Average Daily MVPA Across All Time for Participants")+
+  labs(x = "Average Daily MVPA", y = "Density")
 
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
+p3 <- ggplot(daily2, aes(x = Total_Sleep, y = ..density..)) +
+  geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
+  geom_density(colour = "red") + theme_bw() +  
+  ggtitle("Average Daily Sleep Hours Across All Time for Participants")+
+  labs(x = "Average Daily Sleep Hours", y = "Density")
 
-# Initial Table
-tbl_summary(data = daily2, by=Times, include=Total_Sleep, 
-            type = all_continuous() ~ "continuous2",
-            statistic = all_continuous() ~ c(
-              "{mean} ({sd})",
-              "{median} ({p25}, {p75})",
-              "{min}, {max}"                  ),
-            digits = all_continuous() ~ 0,
-            label = Total_Sleep ~ "Daily Sleep (Hours)"                 ) |> 
-  add_overall() 
+grid.arrange(p1, p2, p3, nrow = 3)
 
-```
-
-
-## Plotting Change in Daily Sleep (Hours) Over Time
-
-```{r, echo=FALSE, message = FALSE, warning=FALSE, fig.width=8}
-ggplot(daily2, aes(x = date, y = Total_Sleep)) + 
-  geom_smooth(colour = "red") + 
-  scale_x_datetime(date_breaks="1 month", date_labels="%b\n%Y") +
-  labs( x = "Average Daily Sleep (Hours)", y = "Density")+
-  theme_bw()
-```
-
-## Daily Sleep (Hours) by Device and Survey Responses
-
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
-
-tbl_continuous(data=daily2, variable = Total_Sleep, include = c("gender", "education", "Usborn",
-                                                                "married", "children_living2", "selfemployed",
-                                                                "rate_health", "Q156_1", "Q127", "Q129", 
-                                                                "Q153")) |> add_p()
-
-my_data <- daily2[, c("Total_Sleep", "Age", "OMICmAge", "UCLA_Loneliness_Rev")]
-correlation::correlation(my_data)
-```
-
-## Unadjusted and Adjusted model of Daily Sleep (Hours)
-Includes a random effect for participants and adjustment for device type
-
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
-library(lme4)
-
-tbl_regression(glmer(data = daily2, Total_Sleep ~ Pre.Post + (1|ID))) |> add_glance_source_note() |>
-  modify_header(label = "**Unadjusted Model**") |>
-  as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*"))
-
-tbl_regression(glmer(data = daily2, Total_Sleep ~ Times + (1|ID))) |> add_glance_source_note()|>
-  modify_header(label = "**Unadjusted Model by Time Periods**") |>
-  as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*"))
-
-tbl_regression(glmer(data = daily2, Total_Sleep ~ Times + gender + Age + rate_health  + (1|ID))) |> add_glance_source_note()|>
-  modify_header(label = "**Adjusted Model**") |>
-  as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*"))
-```
-
-## Difference in Effect of DCI on Step Count by Gender
-
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
-
-tbl_regression(lm(data = subset(daily2, gender == "Male"), Total_Sleep ~ Pre.Post)) |>
-  modify_header(label = "**Difference Among Males**") |> add_glance_source_note() |>
-  as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*")) 
-
-tbl_regression(lm(data = subset(daily2, gender == "Female"), Total_Sleep ~ Pre.Post))|>
-  modify_header(label = "**Difference Among Females**") |> add_glance_source_note() |>
-  as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*"))
-
-tbl_regression(summary(lm(data = daily2, Total_Sleep ~ Pre.Post*gender)))|>
-  modify_header(label = "**Interaction Model**") |> add_glance_source_note() |>
-  as_gt() |> gt::tab_source_note(gt::md("*Data as of June 1, 2025*"))
-
-# Diff-in-diff Plot
-plot_data <- daily2[complete.cases(daily2$gender), ] %>%
-  # Make these categories instead of 0/1 numbers so they look nicer in the plot
-  mutate(gender = factor(gender, labels = c("Female", "Male")),
-         Pre.Post = factor(Pre.Post, labels = c("Before DCI", "After DCI"))) %>%
-  group_by(gender, Pre.Post) %>%
-  summarize(Avg_Steps = mean(Total_Sleep, na.rm=T),
-            se = sd(Total_Sleep) / sqrt(n()),
-            upper = Avg_Steps + (1.96 * se),
-            lower = Avg_Steps + (-1.96 * se))
-
-plot_data <- labelled::copy_labels(from = daily2, to = plot_data)
-
-# Plot
-ggplot(plot_data, aes(x = Pre.Post, y = Avg_Steps, color = gender)) +
-  geom_pointrange(aes(ymin = lower, ymax = upper), size = 1) +
-  geom_line(aes(group = gender)) +
-  theme_bw() + 
-  labs(title="Interaction of Gender and Time", y = "Average Daily Sleep (Hours)", x = "")
-
-# Model
-tbl_regression(lm(data = daily2, Total_Sleep ~ gender:Pre.Post + Age + rate_health))|>
-  modify_header(label = "**Interaction with Adjustment**") |> 
-  add_glance_source_note() |>
-  as_gt() |> gt::tab_source_note(gt::md("*Data as of June 11, 2025*"))
 ```
