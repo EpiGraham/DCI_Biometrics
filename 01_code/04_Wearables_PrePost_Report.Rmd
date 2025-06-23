@@ -170,7 +170,8 @@ participant$time <- participant$last_date-participant$start_date
   
   
 tbl_summary(participant, include = c("Avg_Daily_Steps", "Avg_Daily_MVPA", "Avg_Daily_Sleep", "start_date", "last_date", "time",
-                                     "gender", "Age", "Usborn", "married", "children_living2", "selfemployed", "work_years", "rate_health"))
+                                     "gender", "Age", "Usborn", "married", "children_living2", "selfemployed", "work_years", "rate_health")) %>% 
+  as_gt() %>% gt::as_raw_html(inline_css=FALSE)
 
 
 ```
