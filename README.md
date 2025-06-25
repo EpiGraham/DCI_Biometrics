@@ -11,6 +11,12 @@ References
 [3] Graf GHJ, Aiello AE, Caspi A, Kothari M, Liu H, Moffitt TE, Muennig PA, Ryan CP, Sugden K, Belsky DW. Educational Mobility, Pace of Aging, and Lifespan Among Participants in the Framingham Heart Study. JAMA Netw Open. 2024 Mar 4;7(3):e240655. doi: 10.1001/jamanetworkopen.2024.0655. PMID: 38427354; PMCID: PMC10907927. https://pmc.ncbi.nlm.nih.gov/articles/PMC10907927/  
 [4] Zheng, N.S., Annis, J., Master, H. et al. Sleep patterns and risk of chronic disease as measured by long-term monitoring with commercial wearable devices in the All of Us Research Program. Nat Med 30, 2648–2656 (2024). https://doi.org/10.1038/s41591-024-03155-8. https://www.nature.com/articles/s41591-024-03155-8  
 
+## Questions
+1. Does DCI participation result in a significant change in participant **health metrics** - daily steps, minutes of moderate to vigorous physical activity (MVPA), and hours of sleep?
+2. Does DCI participation reduce the pace of **biological aging** (DunedinPACE and change in OmicAge)?
+   - Could also look at change in telomere length as a measure of cellular aging.
+3. **Do health metrics mediate any change in biological aging?**
+
 ## Data Flow Diagram
 
 ```mermaid
