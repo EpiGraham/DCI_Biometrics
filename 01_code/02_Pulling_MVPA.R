@@ -123,7 +123,7 @@ list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
   # Calculate MVPA
     ds2$MHR <- 207-(ds2$Age*0.7)
     ds2$MVPA <- ifelse(ds2$Value >= ds2$MHR*0.5 & ds2$Value < ds2$MHR*0.7, "Moderate",
-                       ifelse(ds2$Value >= ds2$MHR*0.7 & ds2$Value < ds2$MHR*0.85, "Vigorous", ""))
+                       ifelse(ds2$Value >= ds2$MHR*0.7 & ds2$Value < ds2$MHR*0.85, "Vigorous", "Baseline"))
       prop.table(table(ds2$MVPA))
     ds2 <- ds2[order(ds2$ID, ds2$datetime),]
   
@@ -151,7 +151,7 @@ list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
         daily$mvpa_time <- ifelse(daily$mvpa_time > 24*60, 24*60, daily$mvpa_time)
            hist(daily$mvpa_time)
     # Transpose by Activity Level
-           daily <- subset(daily, daily$MVPA !="") %>% 
+        daily <- subset(daily, daily$MVPA !="") %>% 
         pivot_wider(id_cols = c("ID", "date"), names_from = MVPA, values_from = mvpa_time)
       # Data Cleaning (Allows for 16 hours max of moderate activity in a day or 4 hours max of vigorous activity)
       # Data rules were based off of visual inspection
@@ -159,12 +159,14 @@ list.dirs <- function(path=".", pattern=NULL, all.dirs=FALSE,
            daily$Vigorous <- ifelse(daily$Vigorous > 4*60, 4*60, daily$Vigorous)
         hist(daily$Moderate)
         hist(daily$Vigorous)
+        hist(daily$Baseline)
     # Calculate Total MVPA
         daily$Total_MVPA <- rowSums(daily[,c("Moderate", "Vigorous")], na.rm=TRUE)
+        daily$Total_MVPA <- ifelse(is.na(daily$Total_MVPA) & !is.na(daily$Baseline), 0, daily$Total_MVPA)
         hist(daily$Total_MVPA)
-        ggplot(daily, aes(x=date)) + 
-          geom_smooth(aes(y=Vigorous), color="red")+ 
-          geom_smooth(aes(y=Moderate), color="blue")
+        ggplot(daily, aes(x=date)) + geom_smooth(aes(y=Vigorous), color="red") 
+        ggplot(daily, aes(x=date)) + geom_smooth(aes(y=Moderate), color="blue")
+        ggplot(daily, aes(x=date)) + geom_smooth(aes(y=Moderate), color="green")
         
     # Include 0's for dates with no activity recorded?
         # Participants

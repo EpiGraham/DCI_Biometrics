@@ -29,6 +29,7 @@ library(gtsummary)
 library(readxl)
 library(gridExtra)
 library(lme4)
+library(lsmeans)
 
 # Load Current Step Data
   load("~/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Daily_Steps.RData")
@@ -119,7 +120,7 @@ library(lme4)
 
 Unit of analysis is the day.
 
-```{r, warning=FALSE, echo=FALSE, message = FALSE, fig.height=6}
+```{r, warning=FALSE, echo=FALSE, message = FALSE, fig.height=8}
 
 p1 <- ggplot(daily2, aes(x = Total_Steps, y = ..density..)) +
   geom_histogram(fill = "cornsilk", colour = "grey60", size = .2) +
@@ -202,9 +203,7 @@ Unit of analysis is the person.
   labelled::var_label(participant$work_years) <- "Working Years"
   labelled::var_label(participant$rate_health) <- "Self-Rated Health at the Start of DCI"
   
-  
-tbl_summary(participant, include = c("Avg_Daily_Steps", "Avg_Daily_MVPA", "Avg_Daily_Sleep", "start_date", "last_date", "time",
-                                     "gender", "Age", "Usborn", "married", "children_living2", "selfemployed", "work_years", "rate_health")) %>% 
+tbl_summary(participant, include = c("Avg_Daily_Steps", "Avg_Daily_MVPA", "Avg_Daily_Sleep", "start_date", "last_date", "time", "gender", "Age", "Usborn", "married", "children_living2", "selfemployed", "work_years", "rate_health")) %>% 
   as_gt() %>% gt::as_raw_html()
 
 ```
@@ -274,7 +273,6 @@ daily3 <- daily2[daily2$ID %in% participant$ID, ]
 tbl_summary(data = daily3, by=Pre.Post, include=c(Total_Steps, Total_MVPA, Total_Sleep), 
             type = all_continuous() ~ "continuous2",
             statistic = all_continuous() ~ c(
-              "{mean} ({sd})",
               "{median} ({p25}, {p75})",
               "{min}, {max}"                  ),
             label = c(Total_Steps ~ "Daily Steps", 
@@ -291,17 +289,22 @@ ID is included as a repeated effect to account for clustering on days within a p
 
 ```{r, echo=FALSE, message = FALSE, warning=FALSE}
 
-t1 <- tbl_regression(glmer(data = daily3, Total_Steps ~ Pre.Post + gender + Age + rate_health + (1|ID))) |> add_glance_source_note() %>%
-  modify_header(label = "**Adjusted Model**") 
+t1 <- tbl_regression(glmer(data = daily3, 
+                          Total_Steps ~ Pre.Post + gender + Age + rate_health + (1|ID))) %>% 
+                          add_glance_source_note() %>% add_global_p() %>%
+                          modify_header(label = "**Adjusted Model**")
 
-t2<- tbl_regression(glmer(data = daily3, Total_MVPA ~ Pre.Post + gender + Age + rate_health + (1|ID))) |> add_glance_source_note() %>%
-  modify_header(label = "**Adjusted Model**") 
+t2 <- tbl_regression(glmer(data = daily3, 
+                          Total_MVPA ~ Pre.Post + gender + Age + rate_health + (1|ID))) %>% 
+                          add_glance_source_note() %>% add_global_p() %>%
+                          modify_header(label = "**Adjusted Model**")
 
-t3 <- tbl_regression(glmer(data = daily3, Total_Sleep ~ Pre.Post + gender + Age + rate_health + (1|ID))) |> add_glance_source_note() %>%
-  modify_header(label = "**Adjusted Model**") 
+t3 <- tbl_regression(glmer(data = daily3, 
+                          Total_Sleep ~ Pre.Post + gender + Age + rate_health + (1|ID))) %>% 
+                          add_glance_source_note() %>% add_global_p() %>%
+                          modify_header(label = "**Adjusted Model**")
 
-tbl_merge(
-  tbls = list(t1, t2, t3),
+tbl_merge(tbls = list(t1, t2, t3),
   tab_spanner = c("**Change in Daily Steps**", "**Change in Daily MVPA**", "**Change in Daily Sleep Hours**")
 ) %>%
   as_gt() %>% gt::tab_source_note(gt::md("*Data as of June 1, 2025*")) %>% gt::as_raw_html()
@@ -322,31 +325,33 @@ t2 <- tbl_regression(glmer(data = subset(daily3, gender == "Female"), Total_Step
 tbl_stack(tbls = list(t1, t2)) %>% as_gt() %>% gt::tab_source_note(gt::md("*Data as of June 1, 2025*")) %>% gt::as_raw_html()
 
 # Diff-in-diff Plot
-plot_data <- daily2[complete.cases(daily3$gender), ] %>%
-  # Make these categories instead of 0/1 numbers so they look nicer in the plot
-  mutate(gender = factor(gender, labels = c("Female", "Male")),
-         Pre.Post = factor(Pre.Post, labels = c("Before DCI", "After DCI"))) %>%
-  group_by(gender, Pre.Post) %>%
-  summarize(Avg_Steps = mean(Total_Steps, na.rm=T),
-            se = sd(Total_Steps, na.rm=T) / sqrt(n()),
-            upper = Avg_Steps + (1.96 * se),
-            lower = Avg_Steps + (-1.96 * se))
+  mod.male <- glmer(data = subset(daily3, gender == "Male"), Total_Steps ~ Pre.Post + (1|ID))
+  mod.female <- glmer(data = subset(daily3, gender == "Female"), Total_Steps ~ Pre.Post + (1|ID))
+  
+  pre.male <- as.data.frame(lsmeans(mod.male, "Pre.Post")[1])
+  post.male <- as.data.frame(lsmeans(mod.male, "Pre.Post")[2])
+  pre.female <- as.data.frame(lsmeans(mod.female, "Pre.Post")[1])
+  post.female <- as.data.frame(lsmeans(mod.female, "Pre.Post")[2])
+  
+  male <- rbind(pre.male, post.male)
+  male$Gender <- "Male"
+  female <- rbind(pre.female, post.female)
+  female$Gender <- "Female"
+  
+  plot_data <- rbind(male, female)
 
-plot_data <- labelled::copy_labels(from = daily3, to = plot_data)
-  plot_data <- subset(plot_data, !is.na(gender))
-
-# Plot
-ggplot(plot_data, aes(x = Pre.Post, y = Avg_Steps, color = gender)) +
-  geom_pointrange(aes(ymin = lower, ymax = upper), size = 1) +
-  geom_line(aes(group = gender)) +
-  theme_bw() + 
-  labs(title="Interaction of Sex and Time", y = "Average Daily Steps", x = "")
+  # Plot
+  ggplot(plot_data, aes(x = Pre.Post, y = lsmean, color = Gender)) +
+    geom_pointrange(aes(ymin = SE, ymax = SE), size = 1) +
+    geom_line(aes(group = Gender)) +
+    theme_bw() + coord_cartesian(ylim=c(10000, 15000)) +
+    labs(title="Interaction of Sex and Time", y = "Average Daily Steps", x = "")
 
 # Age-Adjusted
 daily3$Pre.Post <- relevel(daily3$Pre.Post, ref="Post")
 daily3$gender <- relevel(as.factor(daily3$gender), ref="Male")
 tbl_regression(glmer(data = daily3, Total_Steps ~ Pre.Post:gender + Age + (1|ID), family = poisson(link="identity"))) %>%
-  modify_header(label = "**Interaction with Adjustment**")  %>% 
+  modify_header(label = "**Interaction with Adjustment**")  %>% add_global_p() %>%
   as_gt() %>% gt::tab_source_note(gt::md("*Data as of June 1, 2025*")) %>% gt::as_raw_html()
 
 ```
@@ -359,37 +364,39 @@ tbl_regression(glmer(data = daily3, Total_Steps ~ Pre.Post:gender + Age + (1|ID)
 daily3$Pre.Post <- relevel(daily3$Pre.Post, ref="Pre")
 t1 <- tbl_regression(glmer(data = subset(daily3, gender == "Male"), Total_MVPA ~ Pre.Post + (1|ID)),
                      label = list(Pre.Post ~ "Difference in MVPA Pre/Post Among Males")) 
-t2 <- tbl_regression(glmer(data = subset(daily3, gender == "Female"), Total_MVPA ~ Pre.Post + (1|ID),),
+t2 <- tbl_regression(glmer(data = subset(daily3, gender == "Female"), Total_MVPA ~ Pre.Post + (1|ID)),
                      label = list(Pre.Post ~ "Difference in MVPA Pre/Post Among Females")) 
 tbl_stack(tbls = list(t1, t2)) %>% as_gt() %>% gt::tab_source_note(gt::md("*Data as of June 1, 2025*")) %>% gt::as_raw_html()
 
 # Diff-in-diff Plot
-plot_data <- daily2[complete.cases(daily3$gender), ] %>%
-  # Make these categories instead of 0/1 numbers so they look nicer in the plot
-  mutate(gender = factor(gender, labels = c("Female", "Male")),
-         Pre.Post = factor(Pre.Post, labels = c("Before DCI", "After DCI"))) %>%
-  group_by(gender, Pre.Post) %>%
-  summarize(Avg_MVPA = mean(Total_MVPA, na.rm=T),
-            se = sd(Total_MVPA, na.rm=T) / sqrt(n()),
-            upper = Avg_MVPA + (1.96 * se),
-            lower = Avg_MVPA + (-1.96 * se))
+  mod.male <- glmer(data = subset(daily3, gender == "Male"), Total_MVPA ~ Pre.Post + (1|ID))
+  mod.female <- glmer(data = subset(daily3, gender == "Female"), Total_MVPA ~ Pre.Post + (1|ID))
+  
+  pre.male <- as.data.frame(lsmeans(mod.male, "Pre.Post")[1])
+  post.male <- as.data.frame(lsmeans(mod.male, "Pre.Post")[2])
+  pre.female <- as.data.frame(lsmeans(mod.female, "Pre.Post")[1])
+  post.female <- as.data.frame(lsmeans(mod.female, "Pre.Post")[2])
+  
+  male <- rbind(pre.male, post.male)
+  male$Gender <- "Male"
+  female <- rbind(pre.female, post.female)
+  female$Gender <- "Female"
+  
+  plot_data <- rbind(male, female)
 
-plot_data <- labelled::copy_labels(from = daily3, to = plot_data)
-  plot_data <- subset(plot_data, !is.na(gender))
-
-# Plot
-ggplot(plot_data, aes(x = Pre.Post, y = Avg_MVPA, color = gender)) +
-  geom_pointrange(aes(ymin = lower, ymax = upper), size = 1) +
-  geom_line(aes(group = gender)) +
-  theme_bw() + 
-  labs(title="Interaction of Sex and Time", y = "Average Daily MVPA", x = "")
+  # Plot
+  ggplot(plot_data, aes(x = Pre.Post, y = lsmean, color = Gender)) +
+    geom_pointrange(aes(ymin = SE, ymax = SE), size = 1) +
+    geom_line(aes(group = Gender)) +
+    theme_bw() + coord_cartesian(ylim=c(80,120)) +
+    labs(title="Interaction of Sex and Time", y = "Average Daily MVPA", x = "")
 
 # Age-Adjusted
 daily3$Pre.Post <- relevel(daily3$Pre.Post, ref="Post")
 daily3$gender <- relevel(as.factor(daily3$gender), ref="Male")
 tbl_regression(glmer(data = daily3, Total_MVPA ~ Pre.Post:gender + Age + (1|ID))) %>%
-  modify_header(label = "**Interaction with Adjustment**")  %>% 
-  as_gt() %>% gt::tab_source_note(gt::md("*Data as of June 1, 2025*")) %>% gt::as_raw_html()
+  modify_header(label = "**Interaction with Adjustment**")  %>% add_global_p() %>%
+  as_gt() %>% gt::tab_source_note(gt::md("*Data as of June 1, 2025*")) %>% gt::as_raw_html() 
 
 ```
 
@@ -406,31 +413,33 @@ t2 <- tbl_regression(glmer(data = subset(daily3, gender == "Female"), Total_Slee
 tbl_stack(tbls = list(t1, t2)) %>% as_gt() %>% gt::tab_source_note(gt::md("*Data as of June 1, 2025*")) %>% gt::as_raw_html()
 
 # Diff-in-diff Plot
-plot_data <- daily2[complete.cases(daily3$gender), ] %>%
-  # Make these categories instead of 0/1 numbers so they look nicer in the plot
-  mutate(gender = factor(gender, labels = c("Female", "Male")),
-         Pre.Post = factor(Pre.Post, labels = c("Before DCI", "After DCI"))) %>%
-  group_by(gender, Pre.Post) %>%
-  summarize(Avg_Sleep = mean(Total_Sleep, na.rm=T),
-            se = sd(Total_Sleep, na.rm=T) / sqrt(n()),
-            upper = Avg_Sleep + (1.96 * se),
-            lower = Avg_Sleep + (-1.96 * se))
+  mod.male <- glmer(data = subset(daily3, gender == "Male"), Total_Sleep ~ Pre.Post + (1|ID))
+  mod.female <- glmer(data = subset(daily3, gender == "Female"), Total_Sleep ~ Pre.Post + (1|ID))
+  
+  pre.male <- as.data.frame(lsmeans(mod.male, "Pre.Post")[1])
+  post.male <- as.data.frame(lsmeans(mod.male, "Pre.Post")[2])
+  pre.female <- as.data.frame(lsmeans(mod.female, "Pre.Post")[1])
+  post.female <- as.data.frame(lsmeans(mod.female, "Pre.Post")[2])
+  
+  male <- rbind(pre.male, post.male)
+  male$Gender <- "Male"
+  female <- rbind(pre.female, post.female)
+  female$Gender <- "Female"
+  
+  plot_data <- rbind(male, female)
 
-plot_data <- labelled::copy_labels(from = daily3, to = plot_data)
-  plot_data <- subset(plot_data, !is.na(gender))
-
-# Plot
-ggplot(plot_data, aes(x = Pre.Post, y = Avg_Sleep, color = gender)) +
-  geom_pointrange(aes(ymin = lower, ymax = upper), size = 1) +
-  geom_line(aes(group = gender)) +
-  theme_bw() + 
-  labs(title="Interaction of Sex and Time", y = "Average Daily Sleep", x = "")
+  # Plot
+  ggplot(plot_data, aes(x = Pre.Post, y = lsmean, color = Gender)) +
+    geom_pointrange(aes(ymin = SE, ymax = SE), size = 1) +
+    geom_line(aes(group = Gender)) +
+    theme_bw() + coord_cartesian(ylim=c(7,8)) +
+    labs(title="Interaction of Sex and Time", y = "Average Daily Sleep Hours", x = "")
 
 # Age-Adjusted
 daily3$Pre.Post <- relevel(daily3$Pre.Post, ref="Post")
 daily3$gender <- relevel(as.factor(daily3$gender), ref="Male")
 tbl_regression(glmer(data = daily3, Total_Sleep ~ Pre.Post:gender + Age + (1|ID))) %>%
-  modify_header(label = "**Interaction with Adjustment**")  %>% 
+  modify_header(label = "**Interaction with Adjustment**")  %>% add_global_p() %>%
   as_gt() %>% gt::tab_source_note(gt::md("*Data as of June 1, 2025*")) %>% gt::as_raw_html()
 
 ```
