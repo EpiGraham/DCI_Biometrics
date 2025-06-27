@@ -31,6 +31,8 @@ library(gridExtra)
 library(lme4)
 library(lsmeans)
 
+theme_gtsummary_compact()
+
 # Load Current Step Data
   load("~/Library/CloudStorage/GoogleDrive-lagraham@stanford.edu/Shared drives/Secure: DCI Research/Analysis_Graham/Wearables Data/Daily_Steps.RData")
 
@@ -216,11 +218,11 @@ participant$Age_Category <- gtools::quantcut(participant$Age, q = 4, na.rm = TRU
 participant$Work_Years_Category <- gtools::quantcut(participant$work_years, q = 4, na.rm = TRUE)
 
 t1 <- tbl_continuous(data=participant, Avg_Daily_Steps, 
-               include = c("gender", "Age_Category", "Usborn", "married", "children_living2", "selfemployed", "Work_Years_Category", "rate_health")) %>% add_p()
+               include = c("gender", "Age_Category", "Usborn", "married", "children_living2", "selfemployed", "Work_Years_Category", "rate_health")) %>% add_p() %>% bold_p() 
 t2 <- tbl_continuous(data=participant, Avg_Daily_MVPA, 
-               include = c("gender", "Age_Category", "Usborn", "married", "children_living2", "selfemployed", "Work_Years_Category", "rate_health")) %>% add_p()
+               include = c("gender", "Age_Category", "Usborn", "married", "children_living2", "selfemployed", "Work_Years_Category", "rate_health")) %>% add_p() %>% bold_p()
 t3 <- tbl_continuous(data=participant, Avg_Daily_Sleep, 
-               include = c("gender", "Age_Category", "Usborn", "married", "children_living2", "selfemployed", "Work_Years_Category", "rate_health")) %>% add_p()
+               include = c("gender", "Age_Category", "Usborn", "married", "children_living2", "selfemployed", "Work_Years_Category", "rate_health")) %>% add_p() %>% bold_p()
 
 tbl_merge(
   tbls = list(t1, t2, t3),
@@ -319,9 +321,9 @@ tbl_merge(tbls = list(t1, t2, t3),
 
 daily3$Pre.Post <- relevel(daily3$Pre.Post, ref="Pre")
 t1 <- tbl_regression(glmer(data = subset(daily3, gender == "Male"), Total_Steps ~ Pre.Post + (1|ID), family = poisson(link="identity")),
-                     label = list(Pre.Post ~ "Difference in Steps Pre/Post Among Males")) 
+                     label = list(Pre.Post ~ "Difference in Steps Pre/Post Among Males")) %>% bold_p()
 t2 <- tbl_regression(glmer(data = subset(daily3, gender == "Female"), Total_Steps ~ Pre.Post + (1|ID), family = poisson(link="identity")),
-                     label = list(Pre.Post ~ "Difference in Steps Pre/Post Among Females")) 
+                     label = list(Pre.Post ~ "Difference in Steps Pre/Post Among Females")) %>% bold_p()
 tbl_stack(tbls = list(t1, t2)) %>% as_gt() %>% gt::tab_source_note(gt::md("*Data as of June 1, 2025*")) %>% gt::as_raw_html()
 
 # Diff-in-diff Plot
@@ -352,7 +354,7 @@ tbl_stack(tbls = list(t1, t2)) %>% as_gt() %>% gt::tab_source_note(gt::md("*Data
 daily3$Pre.Post <- relevel(daily3$Pre.Post, ref="Post")
 daily3$gender <- relevel(as.factor(daily3$gender), ref="Male")
 tbl_regression(glmer(data = daily3, Total_Steps ~ Pre.Post:gender + Age + (1|ID), family = poisson(link="identity"))) %>%
-  modify_header(label = "**Interaction with Adjustment**")  %>% add_global_p() %>%
+  modify_header(label = "**Interaction with Adjustment**")  %>% add_global_p() %>% bold_p() %>% 
   as_gt() %>% gt::tab_source_note(gt::md("*Data as of June 1, 2025*")) %>% gt::as_raw_html()
 
 ```
