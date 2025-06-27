@@ -232,7 +232,7 @@ tbl_merge(
 
 ## Change in Wearable Metrics by Study Time Period (Pre vs. Post)
 
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
+```{r, echo=FALSE, message = FALSE, warning=FALSE, fig.height=3.5}
 
 Pre <- subset(daily2, Pre.Post == "Pre") %>% group_by(ID) %>%
     summarize(Pre_Steps = mean(Total_Steps, na.rm=T), 
@@ -249,17 +249,17 @@ Pre.Post <- merge(Pre, Post, by=("ID"))
 ggpubr::ggpaired(Pre.Post[complete.cases(Pre.Post[ , c('Pre_Steps', 'Post_Steps')]), ],
                  cond1 = "Pre_Steps", cond2 = "Post_Steps", fill="condition", line.color = "gray", line.size = 0.2,
                 palette = "jama") + ggtitle("Average Daily Steps") + ylab('Mean') + xlab("") + labs(fill="Time") +
-  theme_bw() + ggpubr::stat_compare_means(method="wilcox.test", paired=TRUE, hjust=1.2)
+  theme_bw() + ggpubr::stat_compare_means(method="wilcox.test", paired=TRUE, hjust=-.2)
 
 ggpubr::ggpaired(Pre.Post[complete.cases(Pre.Post[ , c('Pre_MVPA', 'Post_MVPA')]), ],
                  cond1 = "Pre_MVPA", cond2 = "Post_MVPA", fill="condition", line.color = "gray", line.size = 0.2,
                  palette = "jama") + ggtitle("Average Daily MVPA") + ylab('Mean') + xlab("") + labs(fill="Time") +
-  theme_bw() + ggpubr::stat_compare_means(method="wilcox.test", paired=TRUE, hjust=1.2)
+  theme_bw() + ggpubr::stat_compare_means(method="wilcox.test", paired=TRUE, hjust=-.2)
 
 ggpubr::ggpaired(Pre.Post[complete.cases(Pre.Post[ , c('Pre_Sleep', 'Post_Sleep')]), ],
                  cond1 = "Pre_Sleep", cond2 = "Post_Sleep", fill="condition", line.color = "gray", line.size = 0.2,
                  palette = "jama") + ggtitle("Average Daily Sleep Hours") + ylab('Mean') + xlab("") + labs(fill="Time") +
-  theme_bw() + ggpubr::stat_compare_means(method="wilcox.test", paired=TRUE, hjust=1.2)
+  theme_bw() + ggpubr::stat_compare_means(method="wilcox.test", paired=TRUE, hjust=-.2)
 
 ```
 
@@ -315,7 +315,7 @@ tbl_merge(tbls = list(t1, t2, t3),
 
 ## Difference in Effect of DCI on Step Count by Gender
 
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
+```{r, echo=FALSE, message = FALSE, warning=FALSE, fig.height=3}
 
 daily3$Pre.Post <- relevel(daily3$Pre.Post, ref="Pre")
 t1 <- tbl_regression(glmer(data = subset(daily3, gender == "Male"), Total_Steps ~ Pre.Post + (1|ID), family = poisson(link="identity")),
@@ -341,9 +341,10 @@ tbl_stack(tbls = list(t1, t2)) %>% as_gt() %>% gt::tab_source_note(gt::md("*Data
   plot_data <- rbind(male, female)
 
   # Plot
-  ggplot(plot_data, aes(x = Pre.Post, y = lsmean, color = Gender)) +
+  ggplot(plot_data, aes(x = Pre.Post, y = lsmean, color = Gender, label=round(lsmean, digits = 1))) +
     geom_pointrange(aes(ymin = SE, ymax = SE), size = 1) +
     geom_line(aes(group = Gender)) +
+    geom_text(hjust=1, vjust=-1) +
     theme_bw() + coord_cartesian(ylim=c(10000, 15000)) +
     labs(title="Interaction of Sex and Time", y = "Average Daily Steps", x = "")
 
@@ -359,7 +360,7 @@ tbl_regression(glmer(data = daily3, Total_Steps ~ Pre.Post:gender + Age + (1|ID)
 
 ## Difference in Effect of DCI on MVPA by Gender
 
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
+```{r, echo=FALSE, message = FALSE, warning=FALSE, fig.height=3}
 
 daily3$Pre.Post <- relevel(daily3$Pre.Post, ref="Pre")
 t1 <- tbl_regression(glmer(data = subset(daily3, gender == "Male"), Total_MVPA ~ Pre.Post + (1|ID)),
@@ -385,9 +386,10 @@ tbl_stack(tbls = list(t1, t2)) %>% as_gt() %>% gt::tab_source_note(gt::md("*Data
   plot_data <- rbind(male, female)
 
   # Plot
-  ggplot(plot_data, aes(x = Pre.Post, y = lsmean, color = Gender)) +
+  ggplot(plot_data, aes(x = Pre.Post, y = lsmean, color = Gender, label=round(lsmean, digits=1))) +
     geom_pointrange(aes(ymin = SE, ymax = SE), size = 1) +
     geom_line(aes(group = Gender)) +
+    geom_text(hjust=0, vjust=-1) +
     theme_bw() + coord_cartesian(ylim=c(80,120)) +
     labs(title="Interaction of Sex and Time", y = "Average Daily MVPA", x = "")
 
@@ -403,7 +405,7 @@ tbl_regression(glmer(data = daily3, Total_MVPA ~ Pre.Post:gender + Age + (1|ID))
 
 ## Difference in Effect of DCI on Sleep by Gender
 
-```{r, echo=FALSE, message = FALSE, warning=FALSE}
+```{r, echo=FALSE, message = FALSE, warning=FALSE, fig.height=3}
 
 daily3$Pre.Post <- relevel(daily3$Pre.Post, ref="Pre")
 t1 <- tbl_regression(glmer(data = subset(daily3, gender == "Male"), Total_Sleep ~ Pre.Post + (1|ID)),
@@ -429,9 +431,10 @@ tbl_stack(tbls = list(t1, t2)) %>% as_gt() %>% gt::tab_source_note(gt::md("*Data
   plot_data <- rbind(male, female)
 
   # Plot
-  ggplot(plot_data, aes(x = Pre.Post, y = lsmean, color = Gender)) +
+  ggplot(plot_data, aes(x = Pre.Post, y = lsmean, color = Gender, label=round(lsmean, digits=2))) +
     geom_pointrange(aes(ymin = SE, ymax = SE), size = 1) +
     geom_line(aes(group = Gender)) +
+    geom_text(hjust=-.5, vjust=-1) +
     theme_bw() + coord_cartesian(ylim=c(7,8)) +
     labs(title="Interaction of Sex and Time", y = "Average Daily Sleep Hours", x = "")
 
